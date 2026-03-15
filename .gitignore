@@ -1,0 +1,28 @@
+node_modules
+.env
+dist
+coverage
+*.log
+.idea
+.vscode
+.DS_Store
+*.tsbuildinfo
+# Ignore build artifacts
+build
+# Ignore test coverage reports
+coverage  
+# Ignore environment variable files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+# Ignore log files
+*.log
+# Ignore IDE and editor files
+.idea
+
+.vscode
+.DS_Store 
+# Ignore TypeScript build info files
+*.tsbuildinfo
