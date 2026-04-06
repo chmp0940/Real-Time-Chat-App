@@ -7,6 +7,9 @@ coverage
 .vscode
 .DS_Store
 *.tsbuildinfo
+# Next.js artifacts
+.next/
+out/
 # Ignore build artifacts
 build
 # Ignore test coverage reports
@@ -26,3 +29,4 @@ coverage
 .DS_Store 
 # Ignore TypeScript build info files
 *.tsbuildinfo
+.env.example

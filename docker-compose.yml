@@ -6,9 +6,9 @@ services:
     container_name: realtime_chat_app_and_threads_container
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: realtime_chat_app_and_threads_app
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-realtime_chat_app_and_threads_app}
     ports:
       - "6450:5432"
     volumes:
