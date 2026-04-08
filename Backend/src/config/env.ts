@@ -9,6 +9,8 @@ const EnvSchema=z.object({
   DB_User:z.string().default('postgres'),
   DB_Password:z.string().default('postgres'),
   DB_Name:z.string().default('realtime_chat_app_and_threads_app'),
+  CLERK_PUBLISHABLE_KEY:z.string(),
+  CLERK_SECRET_KEY:z.string(),
 })
 
 const parsed=EnvSchema.safeParse(process.env);
