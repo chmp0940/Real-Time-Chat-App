@@ -1,57 +1,56 @@
-
-
 // schema DB vs that we r going to expose to api consumer is different. we need to transform the data before sending it to the client. this file is for that transformation and also for defining the types of the data that we are going to send to the client.
 
+export type UserRow = {
+  id: number;
+  clerk_user_id: string;
+  display_name: string | null;
+  handle: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: Date;
+  updated_at: Date;
+};
 
-export type UserRow={
-  id:Number;
-  clerk_user_id:string;
-  display_Name:string|null;
-  handle:string|null;
-  avatar_url:string|null;
-  bio:string|null;
-  created_at:Date;
-  updated_at:Date;
-}
+export type User = {
+  id: number;
+  clerkUserId: string;
+  displayName: string | null;
+  handle: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type User={
-  id:Number;
-  clerkUserId:string;
-  displayName:string|null;
-  handle:string|null;
-  avatarUrl:string|null;
-  bio:string|null;
-  createdAt:Date;
-  updatedAt:Date;
-}
+export type UserProfile = {
+  user: User;
+  clerkEmail: string | null;
+  clerkFullName: string | null;
+};
 
-export type UserProfile={
-  user:User;
-  clerkEmail:string|null;
-  clerkFullName:string|null;
-}
+export type userProfileResponse = {
+  id: number;
+  clerkUserId: string;
+  displayName: string | null;
+  email: string | null;
+  handle: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+};
 
-export type userProfileResponse={
-  id:Number;
-  clerkUserId:string;
-  displayName:string|null;
-  email:string|null;
-  handle:string|null;
-  avatarUrl:string|null;
-  bio:string|null;
-}
-
-export function toUserProfileResponse(profile:UserProfile):userProfileResponse{
-  const {user,clerkEmail,clerkFullName}=profile;
+export function toUserProfileResponse(
+  profile: UserProfile,
+): userProfileResponse {
+  const { user, clerkEmail, clerkFullName } = profile;
 
   return {
-    id:user.id,
-    clerkUserId:user.clerkUserId,
-    displayName:user.displayName ??clerkFullName??null,
-    email:clerkEmail??null,
-    handle:user.handle??null,
-    avatarUrl:user.avatarUrl ?? null,
-    bio:user.bio??null
+    id: user.id,
+    clerkUserId: user.clerkUserId,
+    displayName: user.displayName ?? clerkFullName ?? null,
+    email: clerkEmail ?? null,
+    handle: user.handle ?? null,
+    avatarUrl: user.avatarUrl ?? null,
+    bio: user.bio ?? null,
   };
 }
 
