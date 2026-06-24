@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 import Navbar from "@/components/layout/navbar";
+import "./globals.css";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
