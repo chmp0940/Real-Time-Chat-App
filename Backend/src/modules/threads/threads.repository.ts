@@ -31,11 +31,15 @@ export async function parseThreadListFilter(queryObj: {
     typeof queryObj.q === "string" && queryObj.q.trim()
       ? queryObj.q.trim()
       : undefined;
-  const sort: 'new' | 'old' = queryObj.sort === "old" ? "old" : "new";
+  const sort: "new" | "old" = queryObj.sort === "old" ? "old" : "new";
 
   return {
-    page,pageSize,categorySlug,search,sort
-  }
+    page,
+    pageSize,
+    categorySlug,
+    search,
+    sort,
+  };
 }
 
 export async function listCategories(): Promise<Category[]> {
@@ -100,9 +104,10 @@ export async function getThreadById(id: number): Promise<ThreadDetails> {
     FROM threads t
     JOIN categories c ON c.id = t.category_id
     JOIN users u ON u.id = t.author_user_id
-    WHERE T.id=$1
+    WHERE t.id=$1
     LIMIT 1
-    `[id],
+    `,
+    [id],
   );
   const row = result.rows[0];
   if (!row) {
@@ -112,32 +117,45 @@ export async function getThreadById(id: number): Promise<ThreadDetails> {
   return mapThreadDetailsRow(row);
 }
 
-export async function listThreads(filter: ThreadListFilter): Promise<ThreadSummary[]> {
+// How SQL query execution works in listThreads:
+// • Filter values (category, search) are collected in `conditions` array
+// • Matching values go into `params` array
+// • SQL uses $1, $2, $3 placeholders instead of real values
+// • Example: categorySlug="react" and search="hooks" becomes:
+//   - SQL: WHERE c.slug=$1 AND (t.title ILIKE $2 OR t.body ILIKE $2)
+//   - params: ["react", "%hooks%", pageSize, offset]
+// • Database executes query by substituting each placeholder with the matching param value in order
 
-    const {page,pageSize,categorySlug,search,sort}=filter;
-    const conditions:string[]=[];
-    const params:unknown[]=[];
-    let idx=1;
+export async function listThreads(
+  filter: ThreadListFilter,
+): Promise<ThreadSummary[]> {
+  const { page, pageSize, categorySlug, search, sort } = filter;
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let idx = 1;
 
-    if(categorySlug){
-        conditions.push(`c.slug=$${idx++}`);
-        params.push(categorySlug);
-    }
-    if(search){
-        conditions.push(`(t.title ILIKE $${idx} OR t.body ILIKE $${idx})`);
-        params.push(`%${search}%`);
-        idx++;
-    }
+  if (categorySlug) {
+    conditions.push(`c.slug=$${idx++}`);
+    params.push(categorySlug);
+  }
+  if (search) {
+    conditions.push(`(t.title ILIKE $${idx} OR t.body ILIKE $${idx})`);
+    params.push(`%${search}%`);
+    idx++;
+  }
 
-    const whereClause=conditions.length>0?`WHERE ${conditions.join(' AND ')}`:"";
+  const whereClause =
+    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    const orderClause=sort==='old'?'ORDER BY t.created_at ASC':'ORDER BY t.created_at DESC';
+  const orderClause =
+    sort === "old" ? "ORDER BY t.created_at ASC" : "ORDER BY t.created_at DESC";
 
-    const offset=(page-1)*pageSize;
+  const offset = (page - 1) * pageSize;
 
-    params.push(pageSize,offset);
+  params.push(pageSize, offset);
 
-    const result=await query<ThreadSummaryRow>(`
+  const result = await query<ThreadSummaryRow>(
+    `
         SELECT 
         t.id,
         t.title,
@@ -155,9 +173,8 @@ export async function listThreads(filter: ThreadListFilter): Promise<ThreadSumma
         ${orderClause}
         LIMIT $${idx++} OFFSET $${idx++}
     `,
-    params
-  
-  ) 
+    params,
+  );
   return result.rows.map(mapThreadSummaryRow);
 }
 

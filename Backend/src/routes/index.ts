@@ -6,4 +6,4 @@ export const apiRouter=Router();
 
 apiRouter.use("/me",userRouter);
 
-apiRouter.use("/threads",threadsRouter);
+apiRouter.use("/threads",threadsRouter); 

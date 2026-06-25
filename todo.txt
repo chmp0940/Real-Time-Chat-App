@@ -1,0 +1,2 @@
+1) implement edit threads also (we have done only add functionality)
+2) implement api post

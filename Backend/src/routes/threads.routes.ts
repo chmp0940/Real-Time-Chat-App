@@ -31,7 +31,7 @@ threadsRouter.get("/categories", async (_req, res, next) => {
   }
 });
 
-threadsRouter.post("threads", async (req, res, next) => {
+threadsRouter.post("/threads", async (req, res, next) => {
   try {
     const auth = getAuth(req);
     if (!auth.userId) {
