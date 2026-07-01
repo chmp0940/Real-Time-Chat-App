@@ -3,7 +3,6 @@ import axios, {
   type AxiosError,
   type AxiosInstance,
 } from "axios";
-import { url } from "zod/v4/mini";
 
 // here in createApi client getToken is recieved by the function as arguement
 

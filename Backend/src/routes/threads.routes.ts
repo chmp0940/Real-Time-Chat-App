@@ -10,6 +10,15 @@ import { getAuth } from "../config/clerk.js";
 import { UnauthorizedError, BadRequestError } from "../lib/errors.js";
 import { z } from "zod";
 import { getUserFromClerk } from "../modules/users/user.service.js";
+import {
+  listRepliesForThread,
+  createReply,
+  findReplyAuthorId,
+  deleteReplyById,
+  likeThreadOnce,
+  removeLikeThreadOnce,
+  getThreadDetailsWithCounts,
+} from "../modules/threads/replies.repository.js";
 
 export const threadsRouter = Router();
 
@@ -63,11 +72,13 @@ threadsRouter.get("/threads/:threadID", async (req, res, next) => {
       throw new UnauthorizedError("User not authenticated");
     }
 
-    // let viewerUserId:number|null=null;
-    // const profile=await getUserFromClerk(auth.userId);
-    // const viwerUserId=profile.user.id;
+    const profile = await getUserFromClerk(auth.userId);
+    const viewerUserId = profile.user.id;
 
-    const thread = await getThreadById(threadId);
+    const thread = await getThreadDetailsWithCounts({
+      threadId,
+      viewerUserId,
+    });
 
     res.json({ data: thread });
   } catch (error) {
@@ -77,7 +88,7 @@ threadsRouter.get("/threads/:threadID", async (req, res, next) => {
 
 threadsRouter.get("/threads", async (req, res, next) => {
   try {
-    const filter=await parseThreadListFilter({
+    const filter = await parseThreadListFilter({
       page: req.query.page,
       pageSize: req.query.pageSize,
       category: req.query.category,
@@ -87,8 +98,138 @@ threadsRouter.get("/threads", async (req, res, next) => {
 
     const extractListOfThreads = await listThreads(filter);
     res.json({ data: extractListOfThreads });
-  }
-  catch (error) {
+  } catch (error) {
     next(error);
   }
-})
+});
+
+// replies and likes end points
+
+threadsRouter.get("/threads/:threadId/replies", async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      throw new UnauthorizedError("User not authenticated");
+    }
+    const threadId = Number(req.params.threadId);
+    if (!Number.isInteger(threadId) || threadId <= 0) {
+      throw new BadRequestError("Invalid thread ID");
+    }
+    const replies = await listRepliesForThread(threadId);
+    res.json({ data: replies });
+  } catch (error) {
+    next(error);
+  }
+});
+
+threadsRouter.post("/threads/:threadId/replies", async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      throw new UnauthorizedError("User not authenticated");
+    }
+
+    const threadId = Number(req.params.threadId);
+    if (!Number.isInteger(threadId) || threadId <= 0) {
+      throw new BadRequestError("Invalid thread ID");
+    }
+
+    const bodyRaw = typeof req.body?.body === "string" ? req.body.body : "";
+    if (bodyRaw.trim().length < 1) {
+      throw new BadRequestError("Reply body must be at least 1 character long");
+    }
+
+    const profile = await getUserFromClerk(auth.userId);
+
+    const reply = await createReply({
+      threadId,
+      authorId: profile.user.id,
+      body: bodyRaw,
+    });
+
+    // notification -> triger here bbut later
+
+    res.status(201).json({ data: reply });
+  } catch (error) {
+    next(error);
+  }
+});
+
+threadsRouter.delete("/replies/:replyId", async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      throw new UnauthorizedError("User not authenticated");
+    }
+
+    const replyId = Number(req.params.replyId);
+    if (!Number.isInteger(replyId) || replyId <= 0) {
+      throw new BadRequestError("Invalid reply ID");
+    }
+
+    const profile = await getUserFromClerk(auth.userId);
+
+    const authorId = await findReplyAuthorId(replyId);
+
+    if (authorId !== profile.user.id) {
+      throw new UnauthorizedError(
+        "You are not authorized to delete this reply",
+      );
+    }
+
+    await deleteReplyById(replyId);
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+threadsRouter.post("/threads/:threadId/like", async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      throw new UnauthorizedError("User not authenticated");
+    }
+    const threadId = Number(req.params.threadId);
+    if (!Number.isInteger(threadId) || threadId <= 0) {
+      throw new BadRequestError("Invalid thread ID");
+    }
+
+    const profile = await getUserFromClerk(auth.userId);
+
+    await likeThreadOnce({
+      threadId,
+      userId: profile.user.id,
+    });
+
+    // notification -> triger here bbut later
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+threadsRouter.delete("/threads/:threadId/like", async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      throw new UnauthorizedError("User not authenticated");
+    }
+
+    const threadId = Number(req.params.threadId);
+    if (!Number.isInteger(threadId) || threadId <= 0) {
+      throw new BadRequestError("Invalid thread ID");
+    }
+
+    const profile = await getUserFromClerk(auth.userId);
+
+    await removeLikeThreadOnce({
+      threadId,
+      userId: profile.user.id,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
