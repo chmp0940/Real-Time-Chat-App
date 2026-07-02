@@ -17,7 +17,7 @@ export async function listRepliesForThread(threadId: number) {
     u.display_name AS author_display_name,
     u.handle AS author_handle
     FROM replies r
-    JOIN users u ON r.author_id = u.id
+    JOIN users u ON r.author_user_id = u.id
     WHERE r.thread_id = $1
     ORDER BY r.created_at ASC
     `,
@@ -44,7 +44,7 @@ export async function createReply(params: {
 
   const results = await query(
     `
-    INSERT INTO replies (thread_id, author_id, body)
+    INSERT INTO replies (thread_id, author_user_id, body)
     VALUES ($1, $2, $3)
     RETURNING id, body, created_at
     `,
@@ -85,7 +85,7 @@ export async function createReply(params: {
 export async function findReplyAuthorId(replyId: number) {
   const result = await query(
     `
-    SELECT author_id
+    SELECT author_user_id
     FROM replies
     where id=$1
     LIMIT 1
@@ -103,7 +103,7 @@ export async function deleteReplyById(replyId: number) {
   await query(
     `
     DELETE FROM replies
-    WHERE id=$1
+    WHERE id=$1 
     `,
     [replyId],
   );
@@ -117,8 +117,8 @@ export async function likeThreadOnce(params: {
 
   await query(
     `
-  INSERT INTO thread_reactions (thread_id, user_id)
-  VALUES ($1, $2)
+  INSERT INTO thread_reactions (thread_id, user_id, reaction_type)
+  VALUES ($1, $2, 'like')
   ON CONFLICT (thread_id, user_id) DO NOTHING
   `,
     [threadId, userId],
@@ -144,12 +144,11 @@ export async function getThreadDetailsWithCounts(params: {
   threadId: number;
   viewerUserId?: number | null;
 }) {
-
   const { threadId, viewerUserId } = params;
 
-  const thread=getThreadById(threadId);
+  const thread = await getThreadById(threadId);
 
-  const liekResult=await query(
+  const likeResult = await query(
     `
     SELECT COUNT(*) :: int AS count
     FROM thread_reactions
@@ -158,10 +157,9 @@ export async function getThreadDetailsWithCounts(params: {
     [threadId],
   );
 
+  const likeCount = (likeResult.rows[0].count as number | undefined) ?? 0;
 
-  const likeCount=(likeResult.rows[0].count as number|undefined) ?? 0;
-
-  const replyResult=await query(
+  const replyResult = await query(
     `
     SELECT COUNT(*) :: int AS count
     FROM replies
@@ -170,12 +168,12 @@ export async function getThreadDetailsWithCounts(params: {
     [threadId],
   );
 
-  const replyCount=(replyResult.rows[0].count as number|undefined) ?? 0;
+  const replyCount = (replyResult.rows[0].count as number | undefined) ?? 0;
 
-  let viewerHasLiked=false;
+  let viewerHasLiked = false;
 
-  if(viewerUserId){
-    const viewerLikeResult=await query(
+  if (viewerUserId) {
+    const viewerLikeResult = await query(
       `
       SELECT 1
       FROM thread_reactions
@@ -185,10 +183,10 @@ export async function getThreadDetailsWithCounts(params: {
       [threadId, viewerUserId],
     );
 
-    const count=viewerLikeResult.rowCount ?? 0;
+    const count = viewerLikeResult.rowCount ?? 0;
 
-    if(count>0){
-      viewerHasLiked=true;
+    if (count > 0) {
+      viewerHasLiked = true;
     }
   }
 
@@ -197,6 +195,5 @@ export async function getThreadDetailsWithCounts(params: {
     likeCount,
     replyCount,
     viewerHasLiked,
-  }
-
+  };
 }

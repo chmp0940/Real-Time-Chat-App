@@ -2,7 +2,6 @@ import { Router } from "express";
 import {
   createThread,
   listCategories,
-  getThreadById,
   parseThreadListFilter,
   listThreads,
 } from "../modules/threads/threads.repository.js";
@@ -229,6 +228,8 @@ threadsRouter.delete("/threads/:threadId/like", async (req, res, next) => {
       threadId,
       userId: profile.user.id,
     });
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
