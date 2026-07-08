@@ -2,6 +2,7 @@ import { createApp } from "./app.js";
 import { assertDatabaseConnection } from "./db/db.js";
 import { logger } from "./lib/logger.js";
 import http from 'node:http';
+import { initIo } from "./realtime/io.js";
 
 
 async function boosStrap()
@@ -11,6 +12,8 @@ async function boosStrap()
     const app=createApp();
     const server=http.createServer(app);
     const port=Number(process.env.PORT) || 5000;
+
+    initIo(server);
 
     server.listen(port,()=>{
       logger.info(`Server is running on port http://localhost:${port}`);

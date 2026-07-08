@@ -18,6 +18,7 @@ import {
   removeLikeThreadOnce,
   getThreadDetailsWithCounts,
 } from "../modules/threads/replies.repository.js";
+import { createLikeNotification, createReplyNotification } from "../modules/notifications/notifications.service.js";
 
 export const threadsRouter = Router();
 
@@ -147,6 +148,11 @@ threadsRouter.post("/threads/:threadId/replies", async (req, res, next) => {
     });
 
     // notification -> triger here bbut later
+    await createReplyNotification({
+      threadId,
+      actorUserId: profile.user.id,
+    });
+
 
     res.status(201).json({ data: reply });
   } catch (error) {
@@ -203,6 +209,10 @@ threadsRouter.post("/threads/:threadId/like", async (req, res, next) => {
     });
 
     // notification -> triger here bbut later
+    await createLikeNotification({
+      threadId,
+      actorUserId: profile.user.id,
+    });
 
     res.status(204).send();
   } catch (error) {
