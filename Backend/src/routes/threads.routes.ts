@@ -61,9 +61,9 @@ threadsRouter.post("/threads", async (req, res, next) => {
   }
 });
 
-threadsRouter.get("/threads/:threadID", async (req, res, next) => {
+threadsRouter.get("/threads/:threadId", async (req, res, next) => {
   try {
-    const threadId = Number(req.params.threadID);
+    const threadId = Number(req.params.threadId);
     if (!Number.isInteger(threadId) || threadId <= 0) {
       throw new BadRequestError("Invalid thread ID");
     }

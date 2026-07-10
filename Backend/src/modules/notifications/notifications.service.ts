@@ -16,7 +16,7 @@ export async function createReplyNotification(params: {
       SELECT author_user_id
       FROM threads
       WHERE ID=$1
-      LIMIT1
+      LIMIT 1
     `,
     [threadId],
   );
@@ -53,12 +53,12 @@ export async function createReplyNotification(params: {
       SELECT 
       n.id,
       n.type,
-      n.thread_id,
-      n.created_at,
+      n.thread_id AS "threadId",
+      n.created_at AS "createdAt",
       n.read_at,
-      actor.display_name AS actor_display_name,
-      actor.handle AS actor_handle,
-      t.title AS thread_title
+      actor.display_name AS "actor_display_name",
+      actor.handle AS "actor_handle",
+      t.title AS "thread_title"
       FROM notifications n
       JOIN users actor ON actor.id=n.actor_user_id
       JOIN threads t ON t.id=n.thread_id
@@ -79,7 +79,7 @@ export async function createReplyNotification(params: {
   // notification:new
   const io = getIo();
   if (io) {
-    io.to(`notifications:user:${actorUserId}`).emit(
+    io.to(`notifications:user:${authorUserId}`).emit(
       "notification:new",
       payload,
     );
@@ -99,7 +99,7 @@ export async function createLikeNotification(params: {
       SELECT author_user_id
       FROM threads
       WHERE ID=$1
-      LIMIT1
+      LIMIT 1
     `,
     [threadId],
   );
@@ -136,12 +136,12 @@ export async function createLikeNotification(params: {
       SELECT 
       n.id,
       n.type,
-      n.thread_id,
-      n.created_at,
+      n.thread_id AS "threadId",
+      n.created_at AS "createdAt",
       n.read_at,
-      actor.display_name AS actor_display_name,
-      actor.handle AS actor_handle,
-      t.title AS thread_title
+      actor.display_name AS "actor_display_name",
+      actor.handle AS "actor_handle",
+      t.title AS "thread_title"
       FROM notifications n
       JOIN users actor ON actor.id=n.actor_user_id
       JOIN threads t ON t.id=n.thread_id
@@ -162,7 +162,7 @@ export async function createLikeNotification(params: {
   // notification:new
   const io = getIo();
   if (io) {
-    io.to(`notifications:user:${actorUserId}`).emit(
+    io.to(`notifications:user:${authorUserId}`).emit(
       "notification:new",
       payload,
     );
@@ -191,12 +191,12 @@ export async function listNotificationsForUser(params: {
       SELECT 
       n.id,
       n.type,
-      n.thread_id,
-      n.created_at,
+      n.thread_id AS "threadId",
+      n.created_at AS "createdAt",
       n.read_at,
-      actor.display_name AS actor_display_name,
-      actor.handle AS actor_handle,
-      t.title AS thread_title
+      actor.display_name AS "actor_display_name",
+      actor.handle AS "actor_handle",
+      t.title AS "thread_title"
       FROM notifications n
       JOIN users actor ON actor.id=n.actor_user_id
       JOIN threads t ON t.id=n.thread_id

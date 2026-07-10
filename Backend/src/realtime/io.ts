@@ -2,6 +2,10 @@ import { Server } from "socket.io";
 import { Server as HttpServer } from "http";
 import { getUserFromClerk } from "../modules/users/user.service.js";
 
+
+// HTTP server gives normal API routes.
+// Socket.IO sits on top of that HTTP server for real-time events.
+// When client connects, backend verifies user, puts user into a personal room, and updates online presence list.
 let io: Server | null = null;
 
 const onlineUsers = new Map<number, Set<String>>();
@@ -66,6 +70,7 @@ export function initIo(httpServer: HttpServer) {
     console.log(`[io connection]--------> ${socket.id} connected`);
 
     try {
+      // doing first authenction check with clerk userId from socket handshake auth
       const clerkUserId = socket.handshake.auth?.userId;
 
       if (!clerkUserId || typeof clerkUserId !== "string") {
@@ -87,6 +92,7 @@ export function initIo(httpServer: HttpServer) {
       (socket.data as { userId: number }) = {
         userId: localUserId,
       };
+      // storing userId in socket.data for future reference
 
       // JOIin noti room
       const notiRoom = `notifications:user:${localUserId}`;

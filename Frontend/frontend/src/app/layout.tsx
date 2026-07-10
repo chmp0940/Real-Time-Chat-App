@@ -3,9 +3,12 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 import Navbar from "@/components/layout/navbar";
+
+import { NotificationCountProvider } from "../../hooks/notification-count";
 import "./globals.css";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,21 +33,22 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <div className="flex min-h-screen flex-col bg-background text-foreground">
-          {/*navbar */}
-          <Navbar/>
-          <main className="flex flex-1 flex-col">
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8 md:py-10">
-              {children}
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          <NotificationCountProvider>
+            <div className="flex min-h-screen flex-col bg-background text-foreground">
+              <Navbar />
+              <main className="flex flex-1 flex-col">
+                <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8 md:py-10">
+                  {children}
+                </div>
+              </main>
             </div>
-          </main>
-        </div>
-      <Toaster/>
-      </body>
-    </html>
+          </NotificationCountProvider>
+          <Toaster />
+        </body>
+      </html>
     </ClerkProvider>
   );
 }

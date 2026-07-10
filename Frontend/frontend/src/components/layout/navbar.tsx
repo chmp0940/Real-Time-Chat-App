@@ -1,41 +1,97 @@
-'use client'
+"use client";
 
 import Link from "next/link";
-import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
+import { SignInButton, useAuth, UserButton, useUser } from "@clerk/nextjs";
 import { Button } from "../ui/button";
 import { Bell, Menu, X } from "lucide-react";
-import { useState } from "react";
-
+import { useEffect, useMemo, useState } from "react";
+import { useSocket } from "../../../hooks/use-socket";
+import { apiGet, createApiClient } from "@/lib/api-client";
+import { Notification } from "@/types/notification";
+import { useNotificationCount } from "../../../hooks/notification-count";
+import { toast } from "sonner";
 function Navbar() {
-
   const { isSignedIn } = useUser();
-  const [unreadCount,setUnreadCount]=useState(0);
-  const [mobileMenuOpen,setMobileMenuOpen]=useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const { getToken, userId } = useAuth();
+  const { socket, connected } = useSocket();
+  const { unreadCount, setUnreadCount, incrementUnreadCount } =
+    useNotificationCount();
+  const apiClient = useMemo(() => createApiClient(getToken), [getToken]);
 
-  const navItems=[
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUnreadNotifications() {
+      if (!userId) {
+        if (isMounted) {
+          setUnreadCount(0);
+          return;
+        }
+      }
+      try {
+        const data = await apiGet<Notification[]>(
+          apiClient,
+          "/api/notifications?unread_only=true",
+        );
+        if (!isMounted) return;
+        setUnreadCount(data.length);
+        console.log("Unread notifications:", data);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Error fetching unread notifications:", error);
+      }
+    }
+    loadUnreadNotifications();
+  }, [apiClient, setUnreadCount, userId]);
+
+  useEffect(() => {
+    if (!socket || !connected) {
+      return;
+    }
+
+    const handleNotification = (payload: Notification) => {
+      incrementUnreadCount(1);
+
+      toast("New Notification", {
+        description:
+          payload.type === "REPLY_ON_THREAD"
+            ? `${payload.actor.handle ?? "someone"} commented on your thread.`
+            : `${payload.actor.handle ?? "someone"} liked  your thread.`,
+      });
+    };
+
+    socket.on("notification:new", handleNotification);
+
+    return () => {
+      socket.off("notification:new", handleNotification);
+    };
+  }, [socket, connected, incrementUnreadCount]);
+
+  const navItems = [
     {
-      href:'/chat',
-      label:'Chat',
-      match:(p?:string|null)=>p?.startsWith(
-        'chat'
-      )
+      href: "/chat",
+      label: "Chat",
+      match: (p?: string | null) => p?.startsWith("chat"),
     },
     {
-      href:'/profile',
-      label:'Profile',
-      match:(p?:string|null)=>p?.startsWith(
-        'profile'
-      )
-    }
-  ]
+      href: "/profile",
+      label: "Profile",
+      match: (p?: string | null) => p?.startsWith("profile"),
+    },
+  ];
 
-  const renderNavLinks=(item:(typeof navItems)[number])=>{
-    return <Link key={item.href} href={item.href} 
-    className="flex items-center rounded-full px-3 py-2 text-sm font-medium transition-colors bg-primary/20 text-primary shadow-sm">
-      {item.label}
-    </Link>
-  }
+  const renderNavLinks = (item: (typeof navItems)[number]) => {
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className="flex items-center rounded-full px-3 py-2 text-sm font-medium transition-colors bg-primary/20 text-primary shadow-sm"
+      >
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-sm">
@@ -82,24 +138,26 @@ function Navbar() {
             </Link>
           )}
 
-          <Button type="button" onClick={()=>setMobileMenuOpen(open=>!open)} className="inline-flex h-9 w-9 justify-center rounded-full border border-sidebar-border bg-sidebar-accent text-muted-foreground transition-colors md:hidden"  >
-          {
-            mobileMenuOpen ? 
-            <X className="w-4 h-4 "/>:
-            <Menu className="w=4 h-4"/>
-          }
+          <Button
+            type="button"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="inline-flex h-9 w-9 justify-center rounded-full border border-sidebar-border bg-sidebar-accent text-muted-foreground transition-colors md:hidden"
+          >
+            {mobileMenuOpen ? (
+              <X className="w-4 h-4 " />
+            ) : (
+              <Menu className="w=4 h-4" />
+            )}
           </Button>
         </div>
       </div>
-      {
-        mobileMenuOpen&&(
-          <div className="border-t border-sidebar-border bg-sidebar/90 md:hidden" >
-            <nav className="mx-auto flex flex-col gap-1 max-w-6xl  px-4 pb-4 pt-2 items-start">
-              {navItems.map(renderNavLinks)}
-            </nav>
-          </div>
-        )
-      }
+      {mobileMenuOpen && (
+        <div className="border-t border-sidebar-border bg-sidebar/90 md:hidden">
+          <nav className="mx-auto flex flex-col gap-1 max-w-6xl  px-4 pb-4 pt-2 items-start">
+            {navItems.map(renderNavLinks)}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
