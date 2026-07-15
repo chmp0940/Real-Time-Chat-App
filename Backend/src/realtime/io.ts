@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import { Server as HttpServer } from "http";
 import { getUserFromClerk } from "../modules/users/user.service.js";
+import { sendDirectMessage } from "../modules/chat/chat.service.js";
 
 
 // HTTP server gives normal API routes.
@@ -83,20 +84,101 @@ export function initIo(httpServer: HttpServer) {
       const rawLocalUserId = profile?.user?.id;
       const localUserId = Number(rawLocalUserId);
 
+      const displayName = profile?.user?.displayName ?? null;
+      const handle = profile?.user?.handle ?? null;
+
       if (!Number.isFinite(localUserId) || localUserId <= 0) {
         console.log(`[Invalid userId]--------> ${socket.id} `);
         socket.disconnect(true);
         return;
       }
 
-      (socket.data as { userId: number }) = {
+      (socket.data as {
+        userId: number;
+        displayName: string | null;
+        handle: string | null;
+      }) = {
         userId: localUserId,
+        displayName: displayName,
+        handle: handle,
       };
       // storing userId in socket.data for future reference
 
       // JOIin noti room
       const notiRoom = `notifications:user:${localUserId}`;
       socket.join(notiRoom);
+
+      // join Dm room (create room)
+      const dmRoom = `dm:user:${localUserId}`;
+      socket.join(dmRoom);
+      
+      socket.on("dm:send", async (payload: unknown) => {
+        try {
+          const data = payload as {
+            receipientUserId: number;
+            body: string | null;
+            imageUrl?: string | null;
+          };
+          const senderUserId = (socket.data as { userId: number }).userId;
+
+          if (!senderUserId) return;
+          const receipientUserId = Number(data.receipientUserId);
+
+          if (!Number.isFinite(receipientUserId) || receipientUserId <= 0) {
+            console.log(`[Invalid receipientUserId]--------> ${socket.id} `);
+            return;
+          }
+          // no self dm
+          if (senderUserId === receipientUserId) {
+            console.log(`[Self DM not allowed]--------> ${socket.id} `);
+            return;
+          }
+
+          console.log(
+            `[dm:send]--------> ${socket.id} sending dm to ${receipientUserId} `,
+          );
+
+          const message = await sendDirectMessage({
+            senderUserId,
+            receipientUserId,
+            body: data.body ?? null,
+            imageUrl: data.imageUrl ?? null,
+          });
+
+          const senderRoom = `dm:user:${senderUserId}`;
+          const receipientRoom = `dm:user:${receipientUserId}`;
+
+          io?.to(senderRoom).to(receipientRoom).emit("dm:message", message);
+        } catch (err) {
+          console.log(`[Error while sending dm]--------> ${err} `);
+        }
+      });
+
+
+      socket.on("dm:typing", (payload: unknown) => {
+        const data= payload as {
+          receipientUserId: number;
+          isTyping: boolean;
+        };
+        const senderUserId = (socket.data as { userId?: number }).userId;
+
+        if(!senderUserId) return;
+        const receipientUserId = Number(data.receipientUserId);
+
+        if (!Number.isFinite(receipientUserId) || receipientUserId <= 0) {
+          console.log(`[Invalid receipientUserId]--------> ${socket.id} `);
+          return;
+        }
+
+        const receipientRoom = `dm:user:${receipientUserId}`;
+        io?.to(receipientRoom).emit("dm:typing", {
+          senderUserId,
+          receipientUserId,
+          isTyping: !!data.isTyping,
+        });
+
+      })
+
 
       addOnlineUser(localUserId, socket.id);
       broadCastPresence();
