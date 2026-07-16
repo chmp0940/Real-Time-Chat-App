@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import { Server as HttpServer } from "http";
 import { getUserFromClerk } from "../modules/users/user.service.js";
 import { sendDirectMessage } from "../modules/chat/chat.service.js";
+import { env } from "../config/env.js";
 
 // HTTP server gives normal API routes.
 // Socket.IO sits on top of that HTTP server for real-time events.
@@ -61,7 +62,7 @@ export function initIo(httpServer: HttpServer) {
 
   io = new Server(httpServer, {
     cors: {
-      origin: "http://localhost:4000",
+      origin: env.FRONTEND_URL,
       credentials: true,
     },
   });

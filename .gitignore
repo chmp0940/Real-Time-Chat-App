@@ -29,4 +29,4 @@ coverage
 .DS_Store 
 # Ignore TypeScript build info files
 *.tsbuildinfo
-.env.example
+

@@ -5,6 +5,7 @@ import { notFounderHandler } from './middlewares/notFoundHandler.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import {clerkMiddleware} from "./config/clerk.js"
 import { apiRouter } from './routes/index.js';
+import { env } from './config/env.js';
 
 
 export function createApp()
@@ -16,7 +17,7 @@ export function createApp()
   app.use(helmet());
   app.use(
     cors({
-      origin:["http://localhost:4000"],
+      origin:[env.FRONTEND_URL],
       credentials:true
     })
   )

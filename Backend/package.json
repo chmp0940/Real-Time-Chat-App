@@ -5,7 +5,11 @@
   "main": "src/server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "migrate": "tsx src/db/migrate.ts"
+    "build": "tsc && npm run copy-migrations",
+    "copy-migrations": "node -e \"const fs=require('fs');const path=require('path');const src=path.join('src','migrations');const dest=path.join('dist','migrations');fs.mkdirSync(dest,{recursive:true});fs.readdirSync(src).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dest,f)));console.log('Migrations copied to dist/')\"",
+    "start": "node dist/server.js",
+    "migrate": "tsx src/db/migrate.ts",
+    "migrate:prod": "node dist/db/migrate.js"
   },
   "keywords": [],
   "author": "",

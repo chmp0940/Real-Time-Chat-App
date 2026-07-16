@@ -13,7 +13,7 @@ const upload = multer({
 uploadRouter.post(
   "/image-upload",
   upload.single("file"),
-  async (req: Request, res, next) => {
+  async (req: Request, res, _next) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });

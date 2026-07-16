@@ -4,13 +4,25 @@ import { logger } from '../lib/logger.js';
 
 // pg is offical postgresql client for nodejs, it is a pure javascript implementation of the postgres protocol, it is a wrapper around the native postgres client, it provides a simple and consistent API for querying the database, it also provides connection pooling and other features.
 
-export const pool = new Pool({
-    host: env?.DB_Host,
-    port: Number(env?.DB_Port),
-    database: env?.DB_Name,
-    user:env?.DB_User,
-    password: env?.DB_Password
-})
+const isProduction = env.NODE_ENV === 'production';
+
+// If DATABASE_URL is provided (hosted DB like Neon/Supabase), use it directly.
+// Otherwise, use individual DB_* variables (local Docker Postgres).
+const poolConfig = env.DATABASE_URL
+  ? {
+      connectionString: env.DATABASE_URL,
+      ssl: isProduction ? { rejectUnauthorized: false } : undefined,
+    }
+  : {
+      host: env.DB_Host,
+      port: Number(env.DB_Port),
+      database: env.DB_Name,
+      user: env.DB_User,
+      password: env.DB_Password,
+    };
+
+export const pool = new Pool(poolConfig);
+
 /*
     * What is a connection pool?
   * Instead of opening a new DB connection for every request, a pool:

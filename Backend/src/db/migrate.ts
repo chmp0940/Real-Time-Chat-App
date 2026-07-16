@@ -1,11 +1,16 @@
 import path from "node:path";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { logger } from "../lib/logger.js";
 import { query } from "./db.js";
 
 
+// Use import.meta.url to resolve path relative to THIS file.
+// This works in both dev (src/) and production (dist/) environments.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const migrateDir=path.resolve(process.cwd(),'src','migrations');
+const migrateDir=path.resolve(__dirname,'..','migrations');
 
 async function runMigrations()
 {
