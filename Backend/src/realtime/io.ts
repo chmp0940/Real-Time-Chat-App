@@ -3,7 +3,6 @@ import { Server as HttpServer } from "http";
 import { getUserFromClerk } from "../modules/users/user.service.js";
 import { sendDirectMessage } from "../modules/chat/chat.service.js";
 
-
 // HTTP server gives normal API routes.
 // Socket.IO sits on top of that HTTP server for real-time events.
 // When client connects, backend verifies user, puts user into a personal room, and updates online presence list.
@@ -52,7 +51,7 @@ function getOnlineUsersIds(): number[] {
 }
 
 function broadCastPresence() {
-  io?.emit("presence", {
+  io?.emit("presence:update", {
     onlineUserIds: getOnlineUsersIds(),
   });
 }
@@ -111,7 +110,7 @@ export function initIo(httpServer: HttpServer) {
       // join Dm room (create room)
       const dmRoom = `dm:user:${localUserId}`;
       socket.join(dmRoom);
-      
+
       socket.on("dm:send", async (payload: unknown) => {
         try {
           const data = payload as {
@@ -154,15 +153,14 @@ export function initIo(httpServer: HttpServer) {
         }
       });
 
-
       socket.on("dm:typing", (payload: unknown) => {
-        const data= payload as {
+        const data = payload as {
           receipientUserId: number;
           isTyping: boolean;
         };
         const senderUserId = (socket.data as { userId?: number }).userId;
 
-        if(!senderUserId) return;
+        if (!senderUserId) return;
         const receipientUserId = Number(data.receipientUserId);
 
         if (!Number.isFinite(receipientUserId) || receipientUserId <= 0) {
@@ -176,19 +174,21 @@ export function initIo(httpServer: HttpServer) {
           receipientUserId,
           isTyping: !!data.isTyping,
         });
-
-      })
-
+      });
 
       addOnlineUser(localUserId, socket.id);
       broadCastPresence();
+
+      socket.on("disconnect", () => {
+        removeOnlineUser(localUserId, socket.id);
+        broadCastPresence();
+      });
     } catch (err) {
       console.log(`[Error while socket Connection]--------> ${err} `);
       socket.disconnect(true);
     }
   });
 }
-export function getIo()
-{
+export function getIo() {
   return io;
 }

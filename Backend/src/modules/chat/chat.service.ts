@@ -8,7 +8,7 @@ export async function listChatUsers(currentUserId: number) {
       id,
       display_name,
       handle,
-      avatar_url,
+      avatar_url
       FROM users
       WHERE id <> $1
       ORDER BY COALESCE(display_name, handle,'USER') ASC
@@ -93,7 +93,7 @@ export async function sendDirectMessage(params: {
   body: string | null;
   imageUrl?: string | null;
 }) {
-  const { senderUserId, receipientUserId, body, imageUrl } = params;
+  const { senderUserId, receipientUserId } = params;
 
   const rawBody = params?.body ?? "";
   const trimmedBody = rawBody.trim();

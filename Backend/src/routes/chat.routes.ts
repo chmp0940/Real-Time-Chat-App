@@ -8,7 +8,7 @@ import {
 
 export const chatRouter = Router();
 
-chatRouter.get("/", async (req, res, next) => {
+chatRouter.get("/users", async (req, res, next) => {
   try {
     const auth = getAuth(req);
     if (!auth.userId) {
