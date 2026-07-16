@@ -24,6 +24,11 @@ export function createApp()
 
   app.use(express.json());
 
+  // Health check endpoint — Render pings this to verify the service is alive
+  app.get('/', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'realtime-chat-backend' });
+  });
+
 app.use('/api',apiRouter);
 
   app.use(notFounderHandler);
