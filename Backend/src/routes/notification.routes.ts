@@ -5,7 +5,9 @@ import { getUserFromClerk } from "../modules/users/user.service.js";
 import {
   listNotificationsForUser,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
 } from "../modules/notifications/notifications.service.js";
+import { strictLimiter } from "../middlewares/rate-limiter.js";
 
 
 export const notificationRouter = Router();
@@ -70,4 +72,23 @@ notificationRouter.post("/:id/read", async (req, res, next) => {
   }
 });
 
-// post/api/notification/read-all
+// Mark ALL notifications as read
+notificationRouter.post("/read-all", strictLimiter, async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      throw new UnauthorizedError("Please Sign In");
+    }
+
+    const profile = await getUserFromClerk(auth.userId);
+    if (!profile) {
+      throw new UnauthorizedError("Please Sign In");
+    }
+
+    await markAllNotificationsAsRead({ userId: profile.user.id });
+
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});

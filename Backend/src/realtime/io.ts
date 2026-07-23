@@ -1,7 +1,8 @@
 import { Server } from "socket.io";
 import { Server as HttpServer } from "http";
 import { getUserFromClerk } from "../modules/users/user.service.js";
-import { sendDirectMessage } from "../modules/chat/chat.service.js";
+import { sendDirectMessage, editDirectMessage, softDeleteDirectMessage, markConversationAsRead } from "../modules/chat/chat.service.js";
+import { listRoomsForUser, sendRoomMessage, isRoomMember, editRoomMessage, softDeleteRoomMessage } from "../modules/chat/group-chat.service.js";
 import { env } from "../config/env.js";
 
 // HTTP server gives normal API routes.
@@ -175,6 +176,180 @@ export function initIo(httpServer: HttpServer) {
           receipientUserId,
           isTyping: !!data.isTyping,
         });
+      });
+
+      // ── DM: edit message ──
+      socket.on("dm:edit", async (payload: unknown) => {
+        try {
+          const data = payload as { messageId: number; newBody: string };
+          const senderUserId = (socket.data as { userId: number }).userId;
+          if (!senderUserId) return;
+
+          const result = await editDirectMessage({
+            messageId: Number(data.messageId),
+            senderUserId,
+            newBody: data.newBody,
+          });
+
+          // Broadcast edit to both users
+          const senderRoom = `dm:user:${senderUserId}`;
+          io?.to(senderRoom).emit("dm:edit", result);
+          // Also need to find the recipient — we broadcast to all dm rooms
+          // since the frontend filters by conversation
+          io?.emit("dm:edit", result);
+        } catch (err) {
+          console.log(`[Error dm:edit] ${err}`);
+        }
+      });
+
+      // ── DM: delete message ──
+      socket.on("dm:delete", async (payload: unknown) => {
+        try {
+          const data = payload as { messageId: number };
+          const senderUserId = (socket.data as { userId: number }).userId;
+          if (!senderUserId) return;
+
+          const result = await softDeleteDirectMessage({
+            messageId: Number(data.messageId),
+            senderUserId,
+          });
+
+          io?.emit("dm:delete", result);
+        } catch (err) {
+          console.log(`[Error dm:delete] ${err}`);
+        }
+      });
+
+      // ── DM: read receipt ──
+      socket.on("dm:read", async (payload: unknown) => {
+        try {
+          const data = payload as { otherUserId: number; lastReadMsgId: number };
+          const ownerUserId = (socket.data as { userId: number }).userId;
+          if (!ownerUserId) return;
+
+          await markConversationAsRead({
+            ownerUserId,
+            otherUserId: Number(data.otherUserId),
+            lastReadMsgId: Number(data.lastReadMsgId),
+          });
+
+          // Notify the other user that their messages have been read
+          const otherRoom = `dm:user:${Number(data.otherUserId)}`;
+          io?.to(otherRoom).emit("dm:read", {
+            readerUserId: ownerUserId,
+            lastReadMsgId: Number(data.lastReadMsgId),
+          });
+        } catch (err) {
+          console.log(`[Error dm:read] ${err}`);
+        }
+      });
+
+      // ── Group chat: auto-join all rooms the user belongs to ──
+      try {
+        const userRooms = await listRoomsForUser(localUserId);
+        for (const room of userRooms) {
+          socket.join(`room:${room.id}`);
+        }
+        console.log(`[io] User ${localUserId} joined ${userRooms.length} group rooms`);
+      } catch (err) {
+        console.log(`[Error loading user rooms] ${err}`);
+      }
+
+      // ── Group chat: join a room dynamically (after creating/joining via API) ──
+      socket.on("room:join", (payload: unknown) => {
+        const data = payload as { roomId: number };
+        const roomId = Number(data.roomId);
+        if (!Number.isFinite(roomId) || roomId <= 0) return;
+        socket.join(`room:${roomId}`);
+        console.log(`[room:join] User ${localUserId} joined room:${roomId}`);
+      });
+
+      // ── Group chat: send message ──
+      socket.on("room:send", async (payload: unknown) => {
+        try {
+          const data = payload as {
+            roomId: number;
+            body: string | null;
+            imageUrl?: string | null;
+          };
+          const senderUserId = (socket.data as { userId: number }).userId;
+          if (!senderUserId) return;
+
+          const roomId = Number(data.roomId);
+          if (!Number.isFinite(roomId) || roomId <= 0) return;
+
+          // Verify membership
+          const isMember = await isRoomMember(roomId, senderUserId);
+          if (!isMember) return;
+
+          const message = await sendRoomMessage({
+            roomId,
+            senderUserId,
+            body: data.body ?? null,
+            imageUrl: data.imageUrl ?? null,
+          });
+
+          io?.to(`room:${roomId}`).emit("room:message", message);
+        } catch (err) {
+          console.log(`[Error room:send] ${err}`);
+        }
+      });
+
+      // ── Group chat: typing ──
+      socket.on("room:typing", (payload: unknown) => {
+        const data = payload as {
+          roomId: number;
+          isTyping: boolean;
+        };
+        const senderUserId = (socket.data as { userId?: number }).userId;
+        if (!senderUserId) return;
+
+        const roomId = Number(data.roomId);
+        if (!Number.isFinite(roomId) || roomId <= 0) return;
+
+        // Broadcast to room except sender
+        socket.to(`room:${roomId}`).emit("room:typing", {
+          roomId,
+          senderUserId,
+          isTyping: !!data.isTyping,
+        });
+      });
+
+      // ── Group chat: edit message ──
+      socket.on("room:edit", async (payload: unknown) => {
+        try {
+          const data = payload as { messageId: number; newBody: string };
+          const senderUserId = (socket.data as { userId: number }).userId;
+          if (!senderUserId) return;
+
+          const result = await editRoomMessage({
+            messageId: Number(data.messageId),
+            senderUserId,
+            newBody: data.newBody,
+          });
+
+          io?.to(`room:${result.roomId}`).emit("room:edit", result);
+        } catch (err) {
+          console.log(`[Error room:edit] ${err}`);
+        }
+      });
+
+      // ── Group chat: delete message ──
+      socket.on("room:delete", async (payload: unknown) => {
+        try {
+          const data = payload as { messageId: number };
+          const senderUserId = (socket.data as { userId: number }).userId;
+          if (!senderUserId) return;
+
+          const result = await softDeleteRoomMessage({
+            messageId: Number(data.messageId),
+            senderUserId,
+          });
+
+          io?.to(`room:${result.roomId}`).emit("room:delete", result);
+        } catch (err) {
+          console.log(`[Error room:delete] ${err}`);
+        }
       });
 
       addOnlineUser(localUserId, socket.id);

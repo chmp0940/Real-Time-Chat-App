@@ -60,3 +60,62 @@ export function mapDirectMessagesResponse(res: unknown): DirectMessage[] {
 
   return (rawList as RawDirectMessage[]).map(mapDirectMessage);
 }
+
+// ── Group Chat Types ──
+
+export type ChatRoom = {
+  id: number;
+  name: string;
+  createdBy: number;
+  createdAt: string;
+  memberCount: number;
+};
+
+export type RoomMember = {
+  id: number;
+  displayName: string | null;
+  handle: string | null;
+  avatarUrl: string | null;
+  joinedAt: string;
+};
+
+export type RoomMessage = {
+  id: number;
+  roomId: number;
+  senderUserId: number;
+  body: string | null;
+  imageUrl: string | null;
+  createdAt: string;
+  sender: {
+    displayName: string | null;
+    handle: string | null;
+    avatarUrl: string | null;
+  };
+};
+
+export type RawRoomMessage = Record<string, any>;
+
+export function mapRoomMessage(r: RawRoomMessage): RoomMessage {
+  return {
+    id: Number(r.id),
+    roomId: Number(r.roomId ?? r.room_id),
+    senderUserId: Number(r.senderUserId ?? r.sender_user_id),
+    body: r.body ?? null,
+    imageUrl: r.imageUrl ?? r.image_url ?? null,
+    createdAt: r.createdAt ?? r.created_at,
+    sender: {
+      displayName: r.sender?.displayName ?? r.sender_display_name ?? null,
+      handle: r.sender?.handle ?? r.sender_handle ?? null,
+      avatarUrl: r.sender?.avatarUrl ?? r.sender_avatar_url ?? null,
+    },
+  };
+}
+
+export function mapRoomMessagesResponse(res: unknown): RoomMessage[] {
+  const rawList = Array.isArray(res)
+    ? res
+    : Array.isArray((res as any)?.data)
+      ? (res as any).data
+      : [];
+  return (rawList as RawRoomMessage[]).map(mapRoomMessage);
+}

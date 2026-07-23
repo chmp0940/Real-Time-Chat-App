@@ -177,6 +177,9 @@ function NewThreadPage() {
                 className="border-border mt-3 bg-background/70 text-sm"
                 {...form.register("body")}
               />
+              <p className="text-xs text-muted-foreground">
+                💡 Supports Markdown — use **bold**, *italic*, `code`, lists, and more
+              </p>
             </div>
             <CardFooter className="flex justify-end border-t border-border px-0 pt-5">
               <Button

@@ -4,6 +4,7 @@ import {
   listCategories,
   parseThreadListFilter,
   listThreads,
+  updateThread,
 } from "../modules/threads/threads.repository.js";
 import { getAuth } from "../config/clerk.js";
 import { UnauthorizedError, BadRequestError } from "../lib/errors.js";
@@ -19,6 +20,7 @@ import {
   getThreadDetailsWithCounts,
 } from "../modules/threads/replies.repository.js";
 import { createLikeNotification, createReplyNotification } from "../modules/notifications/notifications.service.js";
+import { strictLimiter } from "../middlewares/rate-limiter.js";
 
 export const threadsRouter = Router();
 
@@ -26,6 +28,11 @@ const createThreadSchema = z.object({
   title: z.string().trim().min(5).max(200),
   body: z.string().trim().min(10).max(2000),
   categorySlug: z.string().trim().min(2).max(100),
+});
+
+const editThreadSchema = z.object({
+  title: z.string().trim().min(5).max(200).optional(),
+  body: z.string().trim().min(10).max(2000).optional(),
 });
 
 threadsRouter.get("/categories", async (_req, res, next) => {
@@ -56,6 +63,32 @@ threadsRouter.post("/threads", async (req, res, next) => {
       title: paresedBody.title,
     });
     res.status(201).json({ data: newlyCreatedThread });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Edit thread (author only)
+threadsRouter.patch("/threads/:threadId", strictLimiter, async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      throw new UnauthorizedError("User not authenticated");
+    }
+    const threadId = Number(req.params.threadId);
+    if (!Number.isInteger(threadId) || threadId <= 0) {
+      throw new BadRequestError("Invalid thread ID");
+    }
+    const profile = await getUserFromClerk(auth.userId);
+    const parsed = editThreadSchema.parse(req.body);
+
+    const updated = await updateThread({
+      threadId,
+      authorUserId: profile.user.id,
+      title: parsed.title,
+      body: parsed.body,
+    });
+    res.json({ data: updated });
   } catch (error) {
     next(error);
   }

@@ -178,3 +178,50 @@ export async function listThreads(
   return result.rows.map(mapThreadSummaryRow);
 }
 
+export async function updateThread(params: {
+  threadId: number;
+  authorUserId: number;
+  title?: string;
+  body?: string;
+}): Promise<ThreadDetails> {
+  const { threadId, authorUserId, title, body } = params;
+
+  // Verify ownership
+  const ownerCheck = await query<{ author_user_id: number }>(
+    `SELECT author_user_id FROM threads WHERE id = $1 LIMIT 1`,
+    [threadId],
+  );
+  if (ownerCheck.rows.length === 0) {
+    throw new NotFoundError(`Thread with id ${threadId} not found`);
+  }
+  if (ownerCheck.rows[0].author_user_id !== authorUserId) {
+    throw new BadRequestError("You can only edit your own threads");
+  }
+
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let idx = 1;
+
+  if (title !== undefined) {
+    setClauses.push(`title = $${idx++}`);
+    values.push(title);
+  }
+  if (body !== undefined) {
+    setClauses.push(`body = $${idx++}`);
+    values.push(body);
+  }
+  if (setClauses.length === 0) {
+    throw new BadRequestError("No fields to update");
+  }
+
+  setClauses.push(`updated_at = NOW()`);
+  values.push(threadId);
+
+  await query(
+    `UPDATE threads SET ${setClauses.join(", ")} WHERE id = $${idx}`,
+    values,
+  );
+
+  return getThreadById(threadId);
+}
+

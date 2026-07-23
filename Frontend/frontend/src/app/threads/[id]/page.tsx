@@ -4,12 +4,74 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ThreadDetails, MeResponse, Comment } from "../../../types/thread";
 import { createApiClient, apiGet } from "@/lib/api-client";
-import { ArrowLeft, MessageCircle, ThumbsUp, Trash2 } from "lucide-react";
+import { ArrowLeft, MessageCircle, ThumbsUp, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+
+// Custom confirmation dialog component
+function ConfirmDialog({
+  open,
+  onConfirm,
+  onCancel,
+  title,
+  description,
+  confirmLabel,
+  isLoading,
+}: {
+  open: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  isLoading?: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      {/* Dialog */}
+      <div className="relative z-10 mx-4 w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl page-enter">
+        <button
+          onClick={onCancel}
+          className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            className="border-border"
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isLoading ? "Deleting..." : confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ThreadDetailsPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
@@ -26,6 +88,10 @@ function ThreadDetailsPage() {
   const [commentBeingDeletedId, setCommentBeingDeletedId] = useState<
     number | null
   >(null);
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -113,12 +179,15 @@ function ThreadDetailsPage() {
     }
   }
 
-  async function handleDeleteComment(cuurentCommentIdTobeDeleted: number) {
-    const confirmed=window.confirm("Are you sure you want to delete this comment?");
-    if(!confirmed) return;
+  function requestDeleteComment(commentId: number) {
+    setPendingDeleteId(commentId);
+    setDeleteDialogOpen(true);
+  }
 
-    if(!userId)
-    {
+  async function confirmDeleteComment() {
+    if (pendingDeleteId === null) return;
+
+    if(!userId) {
       toast.error("Sign in is needed.",{
         description:"Please sign in to delete a comment.",
       });
@@ -126,9 +195,9 @@ function ThreadDetailsPage() {
     }
 
     try{
-      setCommentBeingDeletedId(cuurentCommentIdTobeDeleted);
-      await apiClient.delete(`/api/threads/replies/${cuurentCommentIdTobeDeleted}`);
-      setComments((prev)=>prev.filter((comment)=>comment.id!==cuurentCommentIdTobeDeleted));
+      setCommentBeingDeletedId(pendingDeleteId);
+      await apiClient.delete(`/api/threads/replies/${pendingDeleteId}`);
+      setComments((prev)=>prev.filter((comment)=>comment.id!==pendingDeleteId));
       toast.success("Comment deleted successfully.",{
         description:"Your comment has been deleted.",
       });
@@ -139,9 +208,9 @@ function ThreadDetailsPage() {
       toast.error("Failed to delete comment.");
     }finally{
       setCommentBeingDeletedId(null);
+      setDeleteDialogOpen(false);
+      setPendingDeleteId(null);
     }
-
-
   }
 
   async function handleToggleLike() {
@@ -179,10 +248,45 @@ function ThreadDetailsPage() {
     }
   }
 
+  // Loading skeleton
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center px-4 py-10">
-        <p className="text-sm text-muted-foreground">Loading Thread...</p>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8">
+        <div className="skeleton h-9 w-36 rounded-full" />
+        <Card className="border-border/70 bg-card">
+          <CardHeader className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="skeleton h-5 w-20 rounded-full" />
+                <div className="skeleton h-4 w-24" />
+                <div className="skeleton h-4 w-20" />
+              </div>
+              <div className="skeleton h-8 w-3/4" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="skeleton h-4 w-full" />
+            <div className="skeleton h-4 w-full" />
+            <div className="skeleton h-4 w-2/3" />
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 bg-card/50">
+          <CardHeader>
+            <div className="skeleton h-6 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="rounded-lg border border-border/80 bg-background/70 p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="skeleton h-4 w-24" />
+                  <div className="skeleton h-3 w-32" />
+                </div>
+                <div className="skeleton h-4 w-full" />
+                <div className="skeleton h-4 w-1/2" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -199,6 +303,20 @@ function ThreadDetailsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8">
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onConfirm={confirmDeleteComment}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setPendingDeleteId(null);
+        }}
+        title="Delete Comment"
+        description="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmLabel="Delete"
+        isLoading={commentBeingDeletedId !== null}
+      />
+
       <Button
         variant={"ghost"}
         onClick={() => router.push("/")}
@@ -263,10 +381,8 @@ function ThreadDetailsPage() {
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <div className="space-y-3">
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {thread.body}
-            </p>
+          <div className="prose-threadstream text-sm">
+            <ReactMarkdown>{thread.body}</ReactMarkdown>
           </div>
         </CardContent>
       </Card>
@@ -293,7 +409,7 @@ function ThreadDetailsPage() {
 
                 return (
                   <div
-                    className="rounded-lg border border-border/80 bg-background/70 p-5"
+                    className="msg-enter rounded-lg border border-border/80 bg-background/70 p-5"
                     key={comment.id}
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
@@ -319,7 +435,7 @@ function ThreadDetailsPage() {
 
                       {isCommentAuthor && (
                         <Button
-                          onClick={() => handleDeleteComment(comment.id)}
+                          onClick={() => requestDeleteComment(comment.id)}
                           disabled={commentBeingDeletedId === comment.id}
                           variant="ghost"
                           size="sm"
@@ -330,9 +446,9 @@ function ThreadDetailsPage() {
                       )}
                     </div>
 
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {comment.body}
-                    </p>
+                    <div className="prose-threadstream text-sm">
+                      <ReactMarkdown>{comment.body}</ReactMarkdown>
+                    </div>
                   </div>
                 );
               })}

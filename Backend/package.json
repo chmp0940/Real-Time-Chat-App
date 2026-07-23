@@ -9,7 +9,8 @@
     "copy-migrations": "node -e \"const fs=require('fs');const path=require('path');const src=path.join('src','migrations');const dest=path.join('dist','migrations');fs.mkdirSync(dest,{recursive:true});fs.readdirSync(src).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dest,f)));console.log('Migrations copied to dist/')\"",
     "start": "node dist/server.js",
     "migrate": "tsx src/db/migrate.ts",
-    "migrate:prod": "node dist/db/migrate.js"
+    "migrate:prod": "node dist/db/migrate.js",
+    "seed": "tsx src/db/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^4.22.1",
+    "express-rate-limit": "^8.6.0",
     "helmet": "^8.1.0",
     "multer": "^2.2.0",
     "pg": "^8.20.0",

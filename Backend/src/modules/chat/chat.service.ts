@@ -160,3 +160,100 @@ export async function sendDirectMessage(params: {
     },
   };
 }
+
+// ── Edit / Delete messages ──
+
+export async function editDirectMessage(params: {
+  messageId: number;
+  senderUserId: number;
+  newBody: string;
+}) {
+  const { messageId, senderUserId, newBody } = params;
+
+  const check = await query(
+    `SELECT sender_user_id, deleted_at FROM direct_messages WHERE id = $1`,
+    [messageId],
+  );
+  const row = check.rows[0];
+  if (!row) throw new Error("Message not found");
+  if (Number(row.sender_user_id) !== senderUserId) throw new Error("Not your message");
+  if (row.deleted_at) throw new Error("Cannot edit a deleted message");
+
+  await query(
+    `UPDATE direct_messages SET body = $1, updated_at = NOW() WHERE id = $2`,
+    [newBody.trim(), messageId],
+  );
+
+  return { id: messageId, body: newBody.trim(), updatedAt: new Date().toISOString() };
+}
+
+export async function softDeleteDirectMessage(params: {
+  messageId: number;
+  senderUserId: number;
+}) {
+  const { messageId, senderUserId } = params;
+
+  const check = await query(
+    `SELECT sender_user_id FROM direct_messages WHERE id = $1`,
+    [messageId],
+  );
+  const row = check.rows[0];
+  if (!row) throw new Error("Message not found");
+  if (Number(row.sender_user_id) !== senderUserId) throw new Error("Not your message");
+
+  await query(
+    `UPDATE direct_messages SET deleted_at = NOW(), body = NULL, image_url = NULL WHERE id = $1`,
+    [messageId],
+  );
+
+  return { id: messageId, deletedAt: new Date().toISOString() };
+}
+
+// ── Read Receipts ──
+
+export async function markConversationAsRead(params: {
+  ownerUserId: number;
+  otherUserId: number;
+  lastReadMsgId: number;
+}) {
+  const { ownerUserId, otherUserId, lastReadMsgId } = params;
+
+  await query(
+    `INSERT INTO dm_read_cursors (owner_user_id, other_user_id, last_read_msg_id, updated_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (owner_user_id, other_user_id)
+     DO UPDATE SET last_read_msg_id = GREATEST(dm_read_cursors.last_read_msg_id, $3), updated_at = NOW()`,
+    [ownerUserId, otherUserId, lastReadMsgId],
+  );
+}
+
+export async function getReadCursor(ownerUserId: number, otherUserId: number) {
+  const res = await query(
+    `SELECT last_read_msg_id FROM dm_read_cursors WHERE owner_user_id = $1 AND other_user_id = $2`,
+    [ownerUserId, otherUserId],
+  );
+  return res.rows[0]?.last_read_msg_id ? Number(res.rows[0].last_read_msg_id) : null;
+}
+
+export async function getUnreadCountsForUser(userId: number) {
+  // Count unread messages per conversation partner
+  const res = await query(
+    `SELECT
+      dm.sender_user_id AS other_user_id,
+      COUNT(*)::int AS unread_count
+     FROM direct_messages dm
+     LEFT JOIN dm_read_cursors rc
+       ON rc.owner_user_id = $1 AND rc.other_user_id = dm.sender_user_id
+     WHERE dm.receipient_user_id = $1
+       AND dm.deleted_at IS NULL
+       AND (rc.last_read_msg_id IS NULL OR dm.id > rc.last_read_msg_id)
+     GROUP BY dm.sender_user_id`,
+    [userId],
+  );
+
+  const counts: Record<number, number> = {};
+  for (const row of res.rows) {
+    counts[Number(row.other_user_id)] = Number(row.unread_count);
+  }
+  return counts;
+}

@@ -6,6 +6,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import {clerkMiddleware} from "./config/clerk.js"
 import { apiRouter } from './routes/index.js';
 import { env } from './config/env.js';
+import { globalLimiter } from './middlewares/rate-limiter.js';
 
 
 export function createApp()
@@ -29,7 +30,7 @@ export function createApp()
     res.status(200).json({ status: 'ok', service: 'realtime-chat-backend' });
   });
 
-app.use('/api',apiRouter);
+app.use('/api', globalLimiter, apiRouter);
 
   app.use(notFounderHandler);
   app.use(errorHandler);
